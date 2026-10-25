@@ -1,0 +1,19 @@
+{
+  "name": "celmic",
+  "private": true,
+  "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "desktop": "bun run --cwd apps/desktop tauri dev",
+    "desktop:build": "bun run --cwd apps/desktop tauri build",
+    "mobile": "bun run --cwd apps/mobile start",
+    "mobile:android": "bun run --cwd apps/mobile android",
+    "mobile:ios": "bun run --cwd apps/mobile ios",
+    "typecheck": "bun run --filter '*' typecheck",
+    "driver:build": "powershell -NoProfile -ExecutionPolicy Bypass -File drivers/windows/scripts/build.ps1",
+    "desktop:build:windows": "bun run driver:build && bun run --cwd apps/desktop tauri build --config src-tauri/tauri.driver.conf.json"
+  }
+}

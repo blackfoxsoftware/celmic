@@ -1,0 +1,16 @@
+<Project>
+  <!--
+    WDK + SDK come from NuGet (restored into .\packages by scripts\build.ps1), so the
+    only machine prerequisite is Visual Studio 2022 with C++ and the
+    "Windows Driver Kit" component (Component.Microsoft.Windows.DriverKit).
+  -->
+  <PropertyGroup>
+    <CelmicKitVersion>10.0.26100.6584</CelmicKitVersion>
+    <CelmicPackages>$(MSBuildThisFileDirectory)packages</CelmicPackages>
+  </PropertyGroup>
+  <Import Project="$(CelmicPackages)\Microsoft.Windows.WDK.x64.$(CelmicKitVersion)\build\native\Microsoft.Windows.WDK.x64.props" Condition="Exists('$(CelmicPackages)\Microsoft.Windows.WDK.x64.$(CelmicKitVersion)\build\native\Microsoft.Windows.WDK.x64.props') and '$(Platform)' == 'x64'" />
+  <Import Project="$(CelmicPackages)\Microsoft.Windows.WDK.ARM64.$(CelmicKitVersion)\build\native\Microsoft.Windows.WDK.arm64.props" Condition="Exists('$(CelmicPackages)\Microsoft.Windows.WDK.ARM64.$(CelmicKitVersion)\build\native\Microsoft.Windows.WDK.arm64.props') and '$(Platform)' == 'ARM64'" />
+  <Import Project="$(CelmicPackages)\Microsoft.Windows.SDK.CPP.x64.$(CelmicKitVersion)\build\native\Microsoft.Windows.SDK.cpp.x64.props" Condition="Exists('$(CelmicPackages)\Microsoft.Windows.SDK.CPP.x64.$(CelmicKitVersion)\build\native\Microsoft.Windows.SDK.cpp.x64.props') and '$(Platform)' == 'x64'" />
+  <Import Project="$(CelmicPackages)\Microsoft.Windows.SDK.CPP.arm64.$(CelmicKitVersion)\build\native\Microsoft.Windows.SDK.cpp.arm64.props" Condition="Exists('$(CelmicPackages)\Microsoft.Windows.SDK.CPP.arm64.$(CelmicKitVersion)\build\native\Microsoft.Windows.SDK.cpp.arm64.props') and '$(Platform)' == 'ARM64'" />
+  <Import Project="$(CelmicPackages)\Microsoft.Windows.SDK.CPP.$(CelmicKitVersion)\build\native\Microsoft.Windows.SDK.cpp.props" Condition="Exists('$(CelmicPackages)\Microsoft.Windows.SDK.CPP.$(CelmicKitVersion)\build\native\Microsoft.Windows.SDK.cpp.props')" />
+</Project>

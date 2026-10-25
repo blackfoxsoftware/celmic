@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["CelmicAudioModule"]
+  },
+  "android": {
+    "modules": ["dev.celmic.audio.CelmicAudioModule"]
+  }
+}

@@ -1,0 +1,9 @@
+# The project uses LF everywhere, regardless of the contributor's OS.
+* text=auto eol=lf
+
+# INF templates are UTF-16LE (with CRLF), as the Windows driver tools expect.
+*.inx -text
+
+*.png binary
+*.ico binary
+*.icns binary

@@ -1,0 +1,8 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "resources": {
+      "../../../drivers/windows/build/x64/Release/CelmicVAD/": "driver/"
+    }
+  }
+}
