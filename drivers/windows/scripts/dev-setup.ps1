@@ -53,6 +53,10 @@ some anti-cheat software refuses to run in test mode.
     return
 }
 
-bcdedit /set testsigning on | Out-Null
+$out = bcdedit /set testsigning on 2>&1
+if ($LASTEXITCODE -ne 0) {
+    # Typically "protected by Secure Boot policy": turn Secure Boot off in the firmware first.
+    throw "bcdedit could not enable test signing: $out"
+}
 Write-Host 'Test signing enabled. Reboot, then install the driver from the Celmic app.'
 Write-Host 'To undo later: bcdedit /set testsigning off'
