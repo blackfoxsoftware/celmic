@@ -298,7 +298,10 @@ internal class StreamSession(private val context: Context, private val config: S
   @SuppressLint("MissingPermission") // checked in JS before start()
   private fun openRecorder(): AudioRecord? {
     val source = when {
-      config.voiceProcessing -> MediaRecorder.AudioSource.VOICE_COMMUNICATION
+      // Not VOICE_COMMUNICATION: outside a call (MODE_IN_COMMUNICATION) some phones
+      // (e.g. Galaxy S21 FE) deliver it ~40 dB too quiet. VOICE_RECOGNITION has a
+      // normal level; noise suppression / echo cancellation come from attachEffects().
+      config.voiceProcessing -> MediaRecorder.AudioSource.VOICE_RECOGNITION
       supportsUnprocessed() -> MediaRecorder.AudioSource.UNPROCESSED
       else -> MediaRecorder.AudioSource.MIC
     }
