@@ -25,6 +25,9 @@ use windows_sys::core::GUID;
 pub const HARDWARE_ID: &str = r"ROOT\CelmicVAD";
 const INF_NAME: &str = "CelmicVAD.inf";
 const INVALID_HDEVINFO: HDEVINFO = -1;
+/// CERT_E_UNTRUSTEDROOT (0x800B0109). SetupAPI reports it truncated to 0x109,
+/// which has no message text: the test certificate isn't trusted / test mode is off.
+const UNTRUSTED_ROOT: u32 = 0x800B_0109;
 
 /// Exit codes of the elevated helper.
 pub const EXIT_OK: i32 = 0;
@@ -219,7 +222,14 @@ pub fn install(inf: &Path) -> Result<bool, String> {
         if UpdateDriverForPlugAndPlayDevicesW(null_mut(), hwid.as_ptr(), inf_w.as_ptr(), INSTALLFLAG_FORCE, &mut reboot)
             == 0
         {
-            let err = last_error("installing the driver");
+            let code = GetLastError();
+            let err = if code == UNTRUSTED_ROOT || code == UNTRUSTED_ROOT & 0xFFFF {
+                "installing the driver: Windows does not trust its test signature. Test-signed builds only \
+                 load in test mode (drivers/windows/scripts/dev-setup.ps1 -EnableTestSigning, then reboot)"
+                    .to_string()
+            } else {
+                format!("installing the driver: {}", io::Error::from_raw_os_error(code as i32))
+            };
             if created {
                 let _ = remove_devices();
             }
