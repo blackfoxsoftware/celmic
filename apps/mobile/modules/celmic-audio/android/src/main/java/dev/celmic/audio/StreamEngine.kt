@@ -8,6 +8,7 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AudioEffect
+import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -299,8 +300,9 @@ internal class StreamSession(private val context: Context, private val config: S
   private fun openRecorder(): AudioRecord? {
     val source = when {
       // Not VOICE_COMMUNICATION: outside a call (MODE_IN_COMMUNICATION) some phones
-      // (e.g. Galaxy S21 FE) deliver it ~40 dB too quiet. VOICE_RECOGNITION has a
-      // normal level; noise suppression / echo cancellation come from attachEffects().
+      // (e.g. Galaxy S21 FE) deliver it ~40 dB too quiet. VOICE_RECOGNITION is
+      // flat; gain control, noise suppression and echo cancellation come from
+      // attachEffects().
       config.voiceProcessing -> MediaRecorder.AudioSource.VOICE_RECOGNITION
       supportsUnprocessed() -> MediaRecorder.AudioSource.UNPROCESSED
       else -> MediaRecorder.AudioSource.MIC
@@ -329,6 +331,11 @@ internal class StreamSession(private val context: Context, private val config: S
   }
 
   private fun attachEffects(audioSession: Int) {
+    // VOICE_RECOGNITION is calibrated flat (90 dB SPL -> about -22 dBFS), so
+    // speech arrives near -50 dBFS without gain control.
+    if (AutomaticGainControl.isAvailable()) {
+      AutomaticGainControl.create(audioSession)?.let { it.enabled = true; effects += it }
+    }
     if (NoiseSuppressor.isAvailable()) {
       NoiseSuppressor.create(audioSession)?.let { it.enabled = true; effects += it }
     }
