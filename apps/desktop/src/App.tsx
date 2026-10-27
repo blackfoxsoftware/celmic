@@ -138,7 +138,10 @@ export default function App() {
                     side="A"
                     tracks={[
                       { key: "from", label: "From", value: `${client.address} · ${client.sampleRate / 1000} kHz` },
-                      { key: "buffer", label: "Buffer", value: `${status!.bufferMs.toFixed(0)} / ${status!.targetLatencyMs} ms` },
+                      // Celmic Microphone only drains the buffer while an app records from it.
+                      status!.virtualMic?.activeStreams === 0
+                        ? { key: "buffer", label: "Buffer", value: "idle · no app recording", tone: "ready" as const }
+                        : { key: "buffer", label: "Buffer", value: `${status!.bufferMs.toFixed(0)} / ${status!.targetLatencyMs} ms` },
                       { key: "loss", label: "Packet loss", value: `${lossPct} %` },
                       { key: "underruns", label: "Underruns", value: String(status!.underruns) },
                     ]}

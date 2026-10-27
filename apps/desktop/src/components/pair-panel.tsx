@@ -27,34 +27,39 @@ export function PairCode({
         : null,
     [info],
   );
-  const qr = size === "lg" ? 232 : 132;
+  const qr = size === "lg" ? 232 : 112;
+
+  const code = showCode && (
+    <TapeCounter
+      value={info?.code ?? "000000"}
+      label={`Pairing code ${info?.code.split("").join(" ") ?? ""}`}
+      className={size === "lg" ? "text-5xl" : "text-[1.75rem]"}
+    />
+  );
 
   return (
-    <div className={cn("flex items-center", size === "lg" ? "gap-10" : "gap-5", className)}>
-      <div
-        className="grid shrink-0 place-items-center rounded-md bg-foreground p-2.5"
-        style={{ width: qr + 20, height: qr + 20 }}
-      >
-        {url ? (
-          <QRCodeSVG value={url} size={qr} marginSize={0} level="M" bgColor="#eceae4" fgColor="#16171a" />
-        ) : (
-          <span className="px-3 text-center text-sm font-medium text-background">
-            {info ? "No network connection" : "…"}
-          </span>
-        )}
-      </div>
-      <div className="flex min-w-0 flex-col gap-2">
-        {showCode && (
-          <TapeCounter
-            value={info?.code ?? "000000"}
-            label={`Pairing code ${info?.code.split("").join(" ") ?? ""}`}
-            className={size === "lg" ? "text-5xl" : "text-[1.75rem]"}
-          />
-        )}
-        <p className={cn("text-muted-foreground", size === "lg" ? "max-w-[34ch] text-lg" : "text-sm")}>
-          Scan with the celmic app (or the camera), or pick <strong className="text-foreground">{info?.name ?? "this PC"}</strong>{" "}
-          in the app and type the code.
-        </p>
+    <div className={cn("flex flex-col gap-4", className)}>
+      {size === "sm" && code}
+      <div className={cn("flex items-center", size === "lg" ? "gap-10" : "gap-5")}>
+        <div
+          className="grid shrink-0 place-items-center rounded-md bg-foreground p-2.5"
+          style={{ width: qr + 20, height: qr + 20 }}
+        >
+          {url ? (
+            <QRCodeSVG value={url} size={qr} marginSize={0} level="M" bgColor="#eceae4" fgColor="#16171a" />
+          ) : (
+            <span className="px-3 text-center text-sm font-medium text-background">
+              {info ? "No network connection" : "…"}
+            </span>
+          )}
+        </div>
+        <div className="flex min-w-0 flex-col gap-2">
+          {size === "lg" && code}
+          <p className={cn("text-muted-foreground", size === "lg" ? "max-w-[34ch] text-lg" : "text-sm")}>
+            Scan with the celmic app (or the camera), or pick <strong className="text-foreground">{info?.name ?? "this PC"}</strong>{" "}
+            in the app and type the code.
+          </p>
+        </div>
       </div>
     </div>
   );

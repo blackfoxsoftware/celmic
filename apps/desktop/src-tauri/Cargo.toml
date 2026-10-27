@@ -1,6 +1,6 @@
 [package]
 name = "celmic-desktop"
-version = "0.1.0"
+version = "0.1.0-beta"
 description = "Celmic — use your phone as a PC microphone"
 authors = ["Celmic contributors"]
 license = "MIT"

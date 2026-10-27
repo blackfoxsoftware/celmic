@@ -2,7 +2,7 @@
   "expo": {
     "name": "Celmic",
     "slug": "celmic",
-    "version": "1.0.0",
+    "version": "0.1.0-beta",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "celmic",
@@ -30,7 +30,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "dev.celmic.app"
+      "package": "dev.celmic.app",
+      "versionCode": 1
     },
     "plugins": [
       "expo-router",

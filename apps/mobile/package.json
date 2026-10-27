@@ -1,6 +1,6 @@
 {
   "name": "@celmic/mobile",
-  "version": "1.0.0",
+  "version": "0.1.0-beta",
   "main": "expo-router/entry",
   "dependencies": {
     "@celmic/protocol": "workspace:*",
