@@ -71,12 +71,17 @@ pub fn find_inf(resource_dir: Option<&Path>) -> Option<PathBuf> {
 /// Runs this executable elevated (UAC prompt) with `args` and waits for it.
 pub fn run_elevated(args: &[&str]) -> Result<i32, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    run_exe_elevated(&exe, args)
+}
+
+/// Runs `exe` elevated (UAC prompt) with `args` and returns its exit code.
+pub fn run_exe_elevated(exe: &Path, args: &[&str]) -> Result<i32, String> {
     let params = args
         .iter()
         .map(|a| format!("\"{a}\""))
         .collect::<Vec<_>>()
         .join(" ");
-    let (verb, file, params) = (wide("runas"), wide_path(&exe), wide(&params));
+    let (verb, file, params) = (wide("runas"), wide_path(exe), wide(&params));
 
     // SAFETY: the struct is plain data; every pointer stays alive for the call.
     unsafe {

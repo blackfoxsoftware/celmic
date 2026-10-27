@@ -46,7 +46,18 @@ export type DriverState = {
   packageAvailable: boolean;
 };
 
+export type UsbMicState = {
+  /** Windows: Celmic Microphone over USB/IP is available on this platform. */
+  supported: boolean;
+  /** usbip-win2 is installed. */
+  installed: boolean;
+  /** Windows has Celmic Microphone attached. */
+  attached: boolean;
+  error: string | null;
+};
+
 export const VIRTUAL_MIC_ID = "celmic:virtual-mic";
+export const USB_MIC_ID = "celmic:usb-mic";
 
 export type Status = {
   /** Current pairing code; changes after a manual or safety rotation. */
@@ -80,6 +91,9 @@ export const api = {
   driverState: () => invoke<DriverState>("driver_state"),
   /** Shows a UAC prompt. Resolves to whether Windows wants a reboot. */
   setDriverInstalled: (install: boolean) => invoke<boolean>("set_driver_installed", { install }),
+  usbMicState: () => invoke<UsbMicState>("usb_mic_state"),
+  /** Installs usbip-win2 if needed (one UAC prompt). Resolves to whether Windows wants a reboot. */
+  setupUsbMic: () => invoke<boolean>("setup_usb_mic"),
   onStatus: (cb: (status: Status) => void): Promise<UnlistenFn> =>
     listen<Status>("status", (event) => cb(event.payload)),
 };

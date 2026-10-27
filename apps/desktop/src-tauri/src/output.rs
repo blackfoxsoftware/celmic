@@ -1,7 +1,8 @@
 //! Audio output: device enumeration and the playout sink.
 //!
-//! Two kinds of sink:
-//! - a cpal output stream (speakers, VB-CABLE, BlackHole, PipeWire sinks), and
+//! Three kinds of sink:
+//! - a cpal output stream (speakers, VB-CABLE, BlackHole, PipeWire sinks),
+//! - on Windows, the USB microphone Celmic exports over USB/IP (`usbmic`), and
 //! - on Windows, the Celmic virtual microphone driver, fed through an IOCTL.
 //!
 //! The sink lives on its own thread so we never depend on `Stream: Send`
@@ -24,6 +25,8 @@ const PREFERRED_RATE: u32 = 48_000;
 
 /// Pseudo device id of the Celmic virtual microphone driver.
 pub const VIRTUAL_MIC_ID: &str = "celmic:virtual-mic";
+/// Pseudo device id of the USB/IP microphone.
+pub const USB_MIC_ID: &str = "celmic:usb-mic";
 
 /// Substrings (lowercase) of device names that are virtual cables, i.e. outputs whose
 /// other end shows up as a microphone for other apps.
@@ -121,8 +124,28 @@ pub fn virtual_mic_installed() -> bool {
     }
 }
 
+/// Whether Windows has the USB/IP microphone attached.
+pub fn usb_mic_attached() -> bool {
+    #[cfg(windows)]
+    {
+        crate::usbmic::get().is_some_and(|mic| mic.attached())
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
 pub fn list_devices() -> Vec<DeviceInfo> {
     let mut list = Vec::new();
+    if usb_mic_attached() {
+        list.push(DeviceInfo {
+            id: USB_MIC_ID.into(),
+            name: "Celmic Microphone".into(),
+            is_default: false,
+            is_virtual: true,
+        });
+    }
     if virtual_mic_installed() {
         list.push(DeviceInfo {
             id: VIRTUAL_MIC_ID.into(),
@@ -180,6 +203,20 @@ enum Sink {
     #[cfg(windows)]
     #[allow(dead_code)]
     Driver(driver_sink::DriverSink),
+    #[cfg(windows)]
+    #[allow(dead_code)]
+    Usb(UsbSink),
+}
+
+/// Routes the phone into the USB/IP microphone while alive.
+#[cfg(windows)]
+struct UsbSink(&'static crate::usbmic::UsbMic);
+
+#[cfg(windows)]
+impl Drop for UsbSink {
+    fn drop(&mut self) {
+        self.0.set_feeding(false);
+    }
 }
 
 #[derive(Clone)]
@@ -192,6 +229,16 @@ struct Slots {
 pub struct Output {
     tx: Sender<Command>,
     slots: Slots,
+    #[cfg_attr(not(windows), allow(dead_code))]
+    shared: Arc<Shared>,
+}
+
+/// In automatic mode, whether the best sink is no longer the open one: the
+/// USB/IP microphone was attached, or went away.
+fn automatic_choice_changed(active: Option<&ActiveOutput>) -> bool {
+    let on_usb = active.is_some_and(|a| a.id == USB_MIC_ID);
+    let on_driver = active.is_some_and(|a| a.id == VIRTUAL_MIC_ID);
+    !on_driver && on_usb != usb_mic_attached()
 }
 
 impl Output {
@@ -204,10 +251,11 @@ impl Output {
         };
 
         let thread_slots = slots.clone();
+        let thread_shared = shared.clone();
         thread::Builder::new()
             .name("celmic-output".into())
             .spawn(move || {
-                let slots = thread_slots;
+                let (slots, shared) = (thread_slots, thread_shared);
                 let mut sink: Option<Sink> = None;
                 // None = automatic selection.
                 let mut selected: Option<String> = None;
@@ -246,7 +294,10 @@ impl Output {
                         }
                         Err(RecvTimeoutError::Timeout) => {
                             // Device unplugged / audio service restarted: try to come back.
-                            if slots.error.lock().unwrap().is_some() {
+                            let failed = slots.error.lock().unwrap().is_some();
+                            let better = selected.is_none()
+                                && automatic_choice_changed(slots.active.lock().unwrap().as_ref());
+                            if failed || better {
                                 let _ = open(&selected, &mut sink);
                             }
                         }
@@ -256,7 +307,7 @@ impl Output {
             })
             .expect("spawn output thread");
 
-        Self { tx, slots }
+        Self { tx, slots, shared }
     }
 
     pub fn select(&self, id: Option<String>) -> Result<ActiveOutput, String> {
@@ -285,6 +336,15 @@ impl Output {
     }
 
     pub fn virtual_mic(&self) -> Option<VirtualMicInfo> {
+        #[cfg(windows)]
+        if self.active().is_some_and(|a| a.id == USB_MIC_ID) {
+            let mic = crate::usbmic::get()?;
+            return Some(VirtualMicInfo {
+                active_streams: mic.streaming() as u32,
+                queued_ms: self.shared.jitter.fill_ms(),
+                underruns: self.shared.jitter.underruns() as u32,
+            });
+        }
         self.slots.virtual_mic.lock().unwrap().clone()
     }
 }
@@ -301,8 +361,21 @@ fn open_sink(id: Option<&str>, shared: &Arc<Shared>, slots: &Slots) -> Result<(S
             match driver_sink::open(shared, slots) {
                 Ok(opened) => return Ok(opened),
                 Err(e) if id.is_some() => return Err(e),
-                Err(_) => {} // automatic mode: fall back to a cpal device
+                Err(_) => {} // automatic mode: fall back to the next choice
             }
+        }
+        // Automatic: then the USB/IP microphone, before any third-party cable.
+        if id == Some(USB_MIC_ID) || (id.is_none() && usb_mic_attached()) {
+            let mic = crate::usbmic::get().ok_or("Celmic Microphone is not available")?;
+            mic.set_feeding(true);
+            let active = ActiveOutput {
+                id: USB_MIC_ID.into(),
+                name: "Celmic Microphone".into(),
+                sample_rate: 48_000,
+                channels: 2,
+                is_virtual: true,
+            };
+            return Ok((Sink::Usb(UsbSink(mic)), active));
         }
     }
     let (stream, info) = open_stream(id, shared, &slots.error)?;

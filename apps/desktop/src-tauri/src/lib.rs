@@ -6,6 +6,8 @@ mod output;
 mod protocol;
 mod server;
 #[cfg(windows)]
+mod usbmic;
+#[cfg(windows)]
 mod vad;
 mod virtual_mic;
 
@@ -36,6 +38,9 @@ struct AppState {
     listen_error: Option<String>,
     mdns_error: Option<String>,
     mdns: Option<discovery::Advertiser>,
+    /// Why the USB/IP microphone server could not start (Windows).
+    #[cfg_attr(not(windows), allow(dead_code))]
+    usb_mic_error: Option<String>,
 }
 
 impl AppState {
@@ -166,6 +171,80 @@ async fn create_virtual_mic(app: tauri::AppHandle) -> Result<ActiveOutput, Strin
     .await
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UsbMicState {
+    /// The platform supports the USB/IP microphone (Windows).
+    supported: bool,
+    /// usbip-win2 is installed.
+    installed: bool,
+    /// Windows has the microphone attached.
+    attached: bool,
+    error: Option<String>,
+}
+
+#[tauri::command]
+fn usb_mic_state(state: State<AppState>) -> UsbMicState {
+    #[cfg(windows)]
+    {
+        UsbMicState {
+            supported: true,
+            installed: usbmic::setup::usbip_exe().is_some(),
+            attached: output::usb_mic_attached(),
+            error: state.usb_mic_error.clone(),
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = state;
+        UsbMicState { supported: false, installed: false, attached: false, error: None }
+    }
+}
+
+/// Installs usbip-win2 if needed (one UAC prompt), attaches Celmic Microphone
+/// and switches the output to it. Returns whether Windows asked for a restart.
+#[tauri::command]
+async fn setup_usb_mic(app: tauri::AppHandle) -> Result<bool, String> {
+    #[cfg(windows)]
+    {
+        blocking(app, |state| {
+            if let Some(e) = &state.usb_mic_error {
+                return Err(e.clone());
+            }
+            let mut reboot = false;
+            let usbip = match usbmic::setup::usbip_exe() {
+                Some(usbip) => usbip,
+                None => {
+                    let dir = std::env::temp_dir().join("celmic-setup");
+                    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+                    let installer = usbmic::setup::download_installer(&dir)?;
+                    reboot = usbmic::setup::install(&installer)?;
+                    let _ = std::fs::remove_file(&installer);
+                    usbmic::setup::usbip_exe().ok_or("usbip-win2 setup finished, but usbip.exe was not found")?
+                }
+            };
+            if let Err(e) = usbmic::setup::attach(&usbip) {
+                return if reboot { Ok(true) } else { Err(e) };
+            }
+            // The import arrives on our server right after usbip.exe returns.
+            for _ in 0..50 {
+                if output::usb_mic_attached() {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(100));
+            }
+            state.output.select(Some(output::USB_MIC_ID.into()))?;
+            Ok(reboot)
+        })
+        .await
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = app;
+        Err("Celmic Microphone is only available on Windows".into())
+    }
+}
+
 #[tauri::command]
 fn driver_state(app: tauri::AppHandle) -> DriverState {
     #[cfg(windows)]
@@ -265,6 +344,10 @@ pub fn run() {
                 Ok(advertiser) => (Some(advertiser), None),
                 Err(e) => (None, Some(e)),
             };
+            #[cfg(windows)]
+            let usb_mic_error = usbmic::start(shared.clone()).err();
+            #[cfg(not(windows))]
+            let usb_mic_error = None;
             let output = Output::spawn(shared.clone());
 
             app.manage(AppState {
@@ -276,6 +359,7 @@ pub fn run() {
                 listen_error,
                 mdns_error,
                 mdns,
+                usb_mic_error,
             });
 
             let handle = app.handle().clone();
@@ -306,6 +390,8 @@ pub fn run() {
             create_virtual_mic,
             driver_state,
             set_driver_installed,
+            usb_mic_state,
+            setup_usb_mic,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

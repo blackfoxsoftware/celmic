@@ -15,7 +15,7 @@ in a single **Bun** monorepo.
 | **Multi-NIC friendly** | The phone races every IP the PC advertises (Wi-Fi, Ethernet, WSL/Docker adapters) and keeps whichever answers first. |
 | **Resilient** | Auto-reconnects when the PC app restarts or Wi-Fi blips. Android runs a microphone foreground service + low-latency Wi-Fi lock, so it keeps streaming with the screen off. |
 | **Voice or raw** | Toggle noise suppression / echo cancellation, or stream the unprocessed mic. |
-| **Native Windows mic** | An open-source kernel audio driver adds a real **Celmic Microphone** device — no VB-CABLE needed. |
+| **Native Windows mic** | Celmic exports a USB microphone over USB/IP; [usbip-win2](https://github.com/vadimgrn/usbip-win2) (open source, Microsoft-signed) attaches it and Windows' own USB audio driver adds a real **Celmic Microphone** — no VB-CABLE, no test mode. |
 | **Open protocol** | Documented in [docs/PROTOCOL.md](docs/PROTOCOL.md). |
 
 ## Layout
@@ -29,6 +29,7 @@ apps/
       output.rs            cpal output device + stream thread
       discovery.rs         LAN IPs + DNS-SD advertisement (_celmic._udp)
       virtual_mic.rs       one-click virtual mic on Linux (PipeWire/PulseAudio)
+      usbmic/              Windows mic: USB Audio Class 2.0 device served over USB/IP
       vad.rs               client for the Windows driver (\.CelmicVAD)
       driver_install.rs    installs the driver (SetupAPI, elevated helper)
   mobile/                  Expo SDK 58 + expo-router
@@ -69,14 +70,17 @@ The desktop app plays the phone's audio into an output device. To have other app
 
 | OS | How |
 | --- | --- |
-| Windows | Click **Install Celmic Microphone** in the app (native driver, see [drivers/windows](drivers/windows/README.md)), then pick **Celmic Microphone** as the input in your apps. [VB-CABLE](https://vb-audio.com/Cable/) also works. |
+| Windows | Click **Set up Celmic Microphone** in the app (installs usbip-win2 once, one UAC prompt), then pick **Celmic Microphone** as the input in your apps. [VB-CABLE](https://vb-audio.com/Cable/) also works. |
 | macOS | Install [BlackHole 2ch](https://existential.audio/blackhole/). Celmic auto-selects it; pick BlackHole as the mic. |
 | Linux | Click **Create virtual mic** in the app (creates a `celmic` null sink + `Celmic_Microphone` source via `pactl`). |
 
 A native macOS virtual microphone (Core Audio plug-in) is on the roadmap.
 
-> **Driver signing:** builds from source are test-signed and only load with Windows test mode
-> (see [drivers/windows](drivers/windows/README.md)). Signed release builds will need none of that.
+> **How the Windows mic works:** Celmic serves a USB Audio Class 2.0 microphone on
+> `127.0.0.1:47801` (USB/IP), usbip-win2 attaches it, and Windows binds its in-box
+> `usbaudio2.sys`. Celmic downloads the pinned usbip-win2 installer from its GitHub release and
+> checks its SHA-256 before running it. The kernel driver in [drivers/windows](drivers/windows/README.md)
+> is still test-signed and only loads in Windows test mode.
 
 ## Development
 
