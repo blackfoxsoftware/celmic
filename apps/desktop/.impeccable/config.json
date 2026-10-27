@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "geist",
+        "files": [
+          ".impeccable/mocks/decision/canon.html"
+        ],
+        "createdAt": "2026-10-26T23:42:49.120Z",
+        "reason": "Claude: canon card depicts the shadcn category standard, whose default face is Geist"
+      },
+      {
+        "rule": "overused-font",
+        "value": "geist mono",
+        "files": [
+          ".impeccable/mocks/decision/canon.html"
+        ],
+        "createdAt": "2026-10-26T23:42:49.298Z",
+        "reason": "Claude: canon card depicts the shadcn category standard, whose default mono is Geist Mono"
+      }
+    ]
+  }
+}
