@@ -1,0 +1,10 @@
+{
+  "name": "@celmic/ui-theme",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "files": ["theme.css"],
+  "exports": {
+    "./theme.css": "./theme.css"
+  }
+}

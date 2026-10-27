@@ -13,10 +13,11 @@
     "windows": [
       {
         "title": "Celmic",
-        "width": 960,
-        "height": 680,
-        "minWidth": 760,
-        "minHeight": 560
+        "width": 1180,
+        "height": 780,
+        "minWidth": 900,
+        "minHeight": 640,
+        "decorations": false
       }
     ],
     "security": {

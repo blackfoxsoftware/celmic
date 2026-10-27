@@ -1,0 +1,46 @@
+/*
+ * celmic's design tokens, shared by the desktop (Tailwind v4 + shadcn/ui) and
+ * the phone (Uniwind + React Native Reusables). Import it right after
+ * `@import "tailwindcss"`; each app declares its own font families.
+ *
+ * The world is a cassette J-card: a graphite shell, card-stock type, and
+ * three index inks that each mean exactly one state, never ornament.
+ */
+
+@theme {
+  /* Graphite shell and J-card stock */
+  --color-background: #16171a;
+  --color-foreground: #eceae4;
+  --color-spine: #0f1012;
+  --color-card: #16171a;
+  --color-card-foreground: #eceae4;
+  --color-popover: #1d1f23;
+  --color-popover-foreground: #eceae4;
+  --color-muted: #1d1f23;
+  --color-muted-foreground: #a3a5ab;
+  --color-faint: #868990;
+  --color-secondary: #22242a;
+  --color-secondary-foreground: #eceae4;
+  --color-accent: #22242a;
+  --color-accent-foreground: #eceae4;
+  --color-border: #2c2e34;
+  --color-input: #3a3d44;
+  --color-ring: #eceae4;
+
+  /* Index inks: one state each */
+  --color-live: #ea5235; /* on air, and anything you can press */
+  --color-live-foreground: #16171a;
+  --color-ready: #f2a93b; /* connected but silent, needs attention */
+  --color-ready-foreground: #16171a;
+  --color-wait: #2f5bd3; /* waiting for a phone, pairing */
+  --color-wait-foreground: #eceae4;
+
+  /* shadcn roles mapped onto the inks */
+  --color-primary: #ea5235;
+  --color-primary-foreground: #16171a;
+  --color-destructive: #ea5235;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
