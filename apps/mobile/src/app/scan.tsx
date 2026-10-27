@@ -1,32 +1,40 @@
 import { useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import { parseConnectUrl } from "@celmic/protocol";
 
+import { Button } from "@/components/ui/button";
+import { Text } from "@/components/ui/text";
 import { connect } from "@/lib/stream";
-import { colors } from "@/lib/theme";
+
+/** Corner marks of the viewfinder, in the index ink you can press. */
+function Corner({ position }: { position: "tl" | "tr" | "bl" | "br" }) {
+  const v = position[0] === "t" ? "top-0 border-t-4" : "bottom-0 border-b-4";
+  const h = position[1] === "l" ? "left-0 border-l-4" : "right-0 border-r-4";
+  return <View className={`absolute size-10 border-live ${v} ${h}`} />;
+}
 
 export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
-  const [hint, setHint] = useState("Point at the QR code in the Celmic desktop app.");
+  const [hint, setHint] = useState("Point at the QR code in celmic on your PC.");
   const handled = useRef(false);
 
-  if (!permission) return <View style={styles.fill} />;
+  if (!permission) return <View className="flex-1 bg-background" />;
 
   if (!permission.granted) {
     return (
-      <View style={[styles.fill, styles.center]}>
-        <Text style={styles.text}>Camera access is needed to scan the pairing code.</Text>
-        <Pressable style={styles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>Allow camera</Text>
-        </Pressable>
+      <View className="flex-1 items-center justify-center gap-5 bg-background p-6">
+        <Text className="text-center text-lg">celmic needs the camera to read the pairing code.</Text>
+        <Button onPress={requestPermission}>
+          <Text>Allow camera</Text>
+        </Button>
       </View>
     );
   }
 
   return (
-    <View style={styles.fill}>
+    <View className="flex-1 bg-black">
       <CameraView
         style={StyleSheet.absoluteFill}
         facing="back"
@@ -35,7 +43,7 @@ export default function ScanScreen() {
           if (handled.current) return;
           const target = parseConnectUrl(data);
           if (!target) {
-            setHint("That isn't a Celmic code.");
+            setHint("That isn't a celmic code.");
             return;
           }
           handled.current = true;
@@ -43,38 +51,15 @@ export default function ScanScreen() {
           router.back();
         }}
       />
-      <View style={styles.frame} pointerEvents="none" />
-      <Text style={styles.hint}>{hint}</Text>
+      <View pointerEvents="none" className="absolute top-[25%] size-64 self-center">
+        <Corner position="tl" />
+        <Corner position="tr" />
+        <Corner position="bl" />
+        <Corner position="br" />
+      </View>
+      <View className="absolute bottom-16 self-center rounded-md bg-background/85 px-4 py-2">
+        <Text className="font-sans-medium">{hint}</Text>
+      </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  fill: { flex: 1, backgroundColor: "#000" },
-  center: { alignItems: "center", justifyContent: "center", gap: 16, padding: 24 },
-  text: { color: colors.text, fontSize: 16, textAlign: "center" },
-  button: { backgroundColor: colors.accent, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12 },
-  buttonText: { color: colors.accentInk, fontWeight: "700", fontSize: 16 },
-  frame: {
-    position: "absolute",
-    alignSelf: "center",
-    top: "25%",
-    width: 240,
-    height: 240,
-    borderRadius: 24,
-    borderWidth: 3,
-    borderColor: colors.accent,
-  },
-  hint: {
-    position: "absolute",
-    bottom: 64,
-    alignSelf: "center",
-    color: "#fff",
-    fontSize: 15,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    overflow: "hidden",
-  },
-});

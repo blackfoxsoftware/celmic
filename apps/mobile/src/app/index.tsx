@@ -1,172 +1,101 @@
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useEffect, useState } from "react";
+import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { ScanLine } from "lucide-react-native";
 
 import { DesktopPicker } from "@/components/desktop-picker";
-import { MicOrb } from "@/components/mic-orb";
-import {
-  connect,
-  disconnect,
-  dismissError,
-  isActive,
-  setVoiceProcessing,
-  toggleMute,
-  useStream,
-} from "@/lib/stream";
-import { colors, mono } from "@/lib/theme";
-
-const STATE_LABEL = {
-  idle: "Not connected",
-  connecting: "Connecting…",
-  streaming: "Live",
-  reconnecting: "Reconnecting…",
-  error: "Disconnected",
-} as const;
+import { IndexStripe } from "@/components/index-stripe";
+import { MuteKey } from "@/components/mute-key";
+import { TapeCounter, formatCounter } from "@/components/tape-counter";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Text } from "@/components/ui/text";
+import { onAir, useColor } from "@/lib/on-air";
+import { connect, disconnect, isActive, setVoiceProcessing, toggleMute, useStream } from "@/lib/stream";
 
 export default function Home() {
-  const { stream, stats, target, muted, voiceProcessing } = useStream();
+  const { stream, stats, target, muted, voiceProcessing, liveSince } = useStream();
+  const insets = useSafeAreaInsets();
   const active = isActive(stream.state);
-  const live = stream.state === "streaming";
-  const desktop = stream.desktopName ?? target?.name;
-
+  const state = onAir(stream, muted, stream.desktopName ?? target?.name);
+  const onPrimary = useColor("primary-foreground");
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <Text style={styles.brand}>celmic</Text>
-            <View style={[styles.pill, live && styles.pillLive]}>
-              <View style={[styles.pillDot, { backgroundColor: live ? colors.accent : active ? colors.warn : colors.muted }]} />
-              <Text style={styles.pillText}>{STATE_LABEL[stream.state]}</Text>
-            </View>
+    <View className="flex-1 bg-background">
+      <IndexStripe
+        state={state}
+        topInset={insets.top}
+        counter={active && liveSince ? <OnAirCounter since={liveSince} /> : undefined}
+      />
+
+      {active ? (
+        <View className="flex-1 gap-5 px-5 pt-5" style={{ paddingBottom: insets.bottom + 16 }}>
+          <MuteKey muted={muted} level={stats?.level ?? 0} onToggle={toggleMute} />
+          <View className="border-t border-border">
+            <Track side="A1" label="Round trip" value={stats && stats.rttMs >= 0 ? `${stats.rttMs.toFixed(0)} ms` : "…"} />
+            <Track side="A2" label="Sample rate" value={stats ? `${stats.sampleRate / 1000} kHz` : "…"} />
+            <Track side="A3" label="Packets sent" value={stats ? stats.packetsSent.toLocaleString() : "…"} />
           </View>
-
-          <MicOrb live={active} muted={muted} level={stats?.level ?? 0} onPress={toggleMute} />
-
-          {active ? (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>{desktop ? `Streaming to ${desktop}` : "Looking for your computer…"}</Text>
-              <View style={styles.statsRow}>
-                <Stat label="Latency" value={stats && stats.rttMs >= 0 ? `${stats.rttMs.toFixed(0)} ms` : "—"} />
-                <Stat label="Rate" value={stats ? `${stats.sampleRate / 1000} kHz` : "—"} />
-                <Stat label="Packets" value={stats ? stats.packetsSent.toLocaleString() : "—"} />
+          <Button variant="outline" onPress={disconnect}>
+            <Text>Disconnect</Text>
+          </Button>
+        </View>
+      ) : (
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1">
+          <ScrollView keyboardShouldPersistTaps="handled">
+            <View className="gap-8 px-5 pt-6" style={{ paddingBottom: insets.bottom + 32 }}>
+              <View className="gap-3">
+                <Button size="lg" onPress={() => router.push("/scan")}>
+                  <ScanLine size={22} color={onPrimary} />
+                  <Text>Scan the code on the PC</Text>
+                </Button>
+                {stream.state === "error" && target && stream.reason !== "bad_code" && (
+                  <Button variant="outline" onPress={() => connect(target)}>
+                    <Text>Try {target.name ?? "again"}</Text>
+                  </Button>
+                )}
               </View>
-              <Pressable style={styles.stopButton} onPress={disconnect}>
-                <Text style={styles.stopText}>Disconnect</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <>
-              {stream.state === "error" && (
-                <Pressable style={styles.error} onPress={dismissError}>
-                  <Text style={styles.errorText}>{stream.error ?? "Something went wrong."}</Text>
-                  {target && stream.reason !== "bad_code" && (
-                    <Pressable onPress={() => connect(target)} hitSlop={8}>
-                      <Text style={styles.retry}>Try again</Text>
-                    </Pressable>
-                  )}
-                </Pressable>
-              )}
-
-              <Pressable style={styles.primary} onPress={() => router.push("/scan")}>
-                <Text style={styles.primaryText}>Scan QR code</Text>
-              </Pressable>
 
               <DesktopPicker onConnect={connect} />
 
-              <View style={styles.setting}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.settingTitle}>Voice processing</Text>
-                  <Text style={styles.settingSub}>
-                    Noise suppression and echo cancellation. Turn off for music or a raw signal.
+              <View className="flex-row items-center gap-4 border-t border-border pt-6">
+                <View className="flex-1 gap-1">
+                  <Text className="font-sans-semibold text-lg">Voice processing</Text>
+                  <Text variant="muted" className="leading-5">
+                    Noise suppression, echo cancellation and gain control. Turn off for music or a raw signal.
                   </Text>
                 </View>
                 <Switch
-                  value={voiceProcessing}
-                  onValueChange={setVoiceProcessing}
-                  trackColor={{ true: colors.accent, false: colors.surface2 }}
-                  thumbColor={Platform.OS === "android" ? colors.text : undefined}
+                  checked={voiceProcessing}
+                  onCheckedChange={setVoiceProcessing}
+                  accessibilityLabel="Voice processing"
                 />
               </View>
-            </>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={{ flex: 1 }}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: 20, gap: 16, paddingBottom: 48 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  brand: { color: colors.text, fontSize: 24, fontWeight: "800", letterSpacing: -0.5 },
-  pill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  pillLive: { borderColor: colors.accent },
-  pillDot: { width: 8, height: 8, borderRadius: 4 },
-  pillText: { color: colors.text, fontSize: 13, fontWeight: "600" },
-  card: {
-    gap: 16,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  cardTitle: { color: colors.text, fontSize: 17, fontWeight: "700" },
-  statsRow: { flexDirection: "row", gap: 12 },
-  statLabel: { color: colors.muted, fontSize: 12 },
-  statValue: { color: colors.text, fontSize: 16, fontWeight: "600", fontFamily: mono, marginTop: 2 },
-  stopButton: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  stopText: { color: colors.text, fontSize: 16, fontWeight: "600" },
-  primary: { backgroundColor: colors.accent, borderRadius: 14, paddingVertical: 16, alignItems: "center" },
-  primaryText: { color: colors.accentInk, fontWeight: "800", fontSize: 17 },
-  error: {
-    gap: 8,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: "#2A1416",
-    borderWidth: 1,
-    borderColor: "#4A1F22",
-  },
-  errorText: { color: colors.danger, fontSize: 15 },
-  retry: { color: colors.text, fontWeight: "700", fontSize: 15 },
-  setting: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  settingTitle: { color: colors.text, fontSize: 16, fontWeight: "600" },
-  settingSub: { color: colors.muted, fontSize: 13, marginTop: 2, lineHeight: 18 },
-});
+function OnAirCounter({ since }: { since: number }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const secs = Math.max(0, Math.floor((now - since) / 1000));
+  return <TapeCounter value={formatCounter(secs)} size={22} label={`${secs} seconds on air`} separatorClassName="text-background" />;
+}
+
+function Track({ side, label, value }: { side: string; label: string; value: string }) {
+  return (
+    <View className="flex-row items-baseline gap-3 border-b border-border py-3">
+      <Text className="w-7 font-mono-medium text-[13px] text-faint">{side}</Text>
+      <Text className="flex-1 font-sans-medium text-muted-foreground">{label}</Text>
+      <Text className="font-mono text-base">{value}</Text>
+    </View>
+  );
+}

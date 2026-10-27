@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@import "uniwind";
+@import "@celmic/ui-theme/theme.css";
+
+/*
+ * React Native needs one family per weight (no synthesis, no fallbacks), so
+ * each weight is its own font token. Loaded at runtime in app/_layout.tsx.
+ */
+@theme {
+  --font-sans: "Barlow_400Regular";
+  --font-sans-medium: "Barlow_500Medium";
+  --font-sans-semibold: "Barlow_600SemiBold";
+  --font-display: "BarlowCondensed_700Bold";
+  --font-display-semibold: "BarlowCondensed_600SemiBold";
+  --font-mono: "JetBrainsMono_700Bold";
+  --font-mono-medium: "JetBrainsMono_500Medium";
+}

@@ -11,6 +11,8 @@ type Store = {
   target: ConnectTarget | null;
   muted: boolean;
   voiceProcessing: boolean;
+  /** When this stream first went live (ms since epoch), for the time-on-air counter. */
+  liveSince: number | null;
 };
 
 let store: Store = {
@@ -19,6 +21,7 @@ let store: Store = {
   target: null,
   muted: false,
   voiceProcessing: true,
+  liveSince: null,
 };
 
 const listeners = new Set<() => void>();
@@ -30,7 +33,11 @@ function update(patch: Partial<Store>) {
 
 CelmicAudio.addListener("onStateChange", (stream) => {
   const ended = stream.state === "idle" || stream.state === "error";
-  update(ended ? { stream, stats: null, muted: false } : { stream });
+  if (ended) {
+    update({ stream, stats: null, muted: false, liveSince: null });
+  } else {
+    update({ stream, liveSince: store.liveSince ?? (stream.state === "streaming" ? Date.now() : null) });
+  }
 });
 CelmicAudio.addListener("onStats", (stats) => update({ stats }));
 
